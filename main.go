@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"strings"
+	// "fmt"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	raft.nodes = ns
 	raft.rpc(*port)
 	raft.start()
-
-	select {}
-
+	for {
+		WriteEntry(raft, "Hello")
+	}
 }

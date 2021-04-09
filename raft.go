@@ -9,9 +9,27 @@ import (
 	"time"
 )
 
+type DLogEntry struct {
+	entry_time time.Time
+	msg string
+}
+
+func WriteEntry(rf *Raft, msg string) {
+	callMeDaddy()
+	rf.writeChan <- msg
+}
+
+func ReadEntry(rf *Raft, idx int) {
+	rf.readChan <- idx
+}
+
 type node struct {
 	connect bool
 	address string
+}
+
+func callMeDaddy() {
+	fmt.Println("Hi Daddy")
 }
 
 // New node
@@ -65,6 +83,12 @@ type Raft struct {
 	// channels
 	heartbeatC chan bool
 	toLeaderC  chan bool
+
+
+	// writeChannel 
+	writeChan chan string
+	// read Channel
+	readChan chan int
 }
 
 // RequestVote rpc method
@@ -142,6 +166,9 @@ func (rf *Raft) start() {
 	rf.heartbeatC = make(chan bool)
 	rf.toLeaderC = make(chan bool)
 
+	rf.writeChan = make(chan string)
+	rf.readChan = make(chan int)
+
 	go func() {
 
 		rand.Seed(time.Now().UnixNano())
@@ -182,7 +209,13 @@ func (rf *Raft) start() {
 						i := 0
 						for {
 							i++
-							rf.log = append(rf.log, LogEntry{rf.currentTerm, i, fmt.Sprintf("user send : %d", i)})
+							msg, ok := <-rf.writeChan
+							fmt.Println("msg is " + msg)
+							if (ok) {
+								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, fmt.Sprintf("msg : %s", msg)})
+							} else {
+								fmt.Println("no msg to log")
+							}
 							time.Sleep(3 * time.Second)
 						}
 					}()
