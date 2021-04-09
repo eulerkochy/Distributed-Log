@@ -3,7 +3,8 @@ package main
 import (
 	"flag"
 	"strings"
-	// "fmt"
+	"time"
+	"fmt"
 )
 
 func main() {
@@ -22,9 +23,25 @@ func main() {
 	raft := &Raft{}
 	raft.me = *id
 	raft.nodes = ns
+
+
 	raft.rpc(*port)
+	callMeDaddy()
+	time.Sleep(10 * time.Second)
 	raft.start()
+
+	time.Sleep(1 * time.Second)
+	str := "Hello"
+	clientName := "BSDK"
 	for {
-		WriteEntry(raft, "Hello")
+		idx := WriteEntry(raft, clientName,  str)
+		str += "!"
+		time.Sleep(1 * time.Second)
+		msgWritten := ReadEntry(raft, 2)
+
+		fmt.Printf("idx %d stringWritten %s\n", idx, msgWritten)
+
+		time.Sleep(500 * time.Millisecond)
+
 	}
 }

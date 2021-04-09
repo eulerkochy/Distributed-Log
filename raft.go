@@ -10,17 +10,49 @@ import (
 )
 
 type DLogEntry struct {
+	clientID string
 	entry_time time.Time
+
 	msg string
 }
 
-func WriteEntry(rf *Raft, msg string) {
+func WriteEntry(rf *Raft, clientName string, msg string) int {
 	callMeDaddy()
-	rf.writeChan <- msg
+	fmt.Println("state " + whatState(rf.state))
+	var idx int
+	if (rf.state == Leader) {
+		rf.writeChan <- msg
+		idx = len(rf.log) - 1
+	} else {
+		idx = -1
+	}
+	// metadata
+
+	dEntryMsg := &DLogEntry{}
+	dEntryMsg.clientID = clientName
+
+
+	return idx
+	// } else {
+	// 	return -1
+	// }
 }
 
-func ReadEntry(rf *Raft, idx int) {
-	rf.readChan <- idx
+func ReadEntry(rf *Raft, idx int) string {
+	var str string
+	maxIdx := rf.getLastIndex()
+	fmt.Printf("idx %d maxIdx %d\n", idx, maxIdx)
+	if (rf.state != Leader) {
+		return "error: redirect client call to Leader"
+	} else {
+		if (idx < maxIdx ) {
+			str = rf.log[idx].LogCMD
+		} else {
+			str = "error: no log record exists"
+		}
+		return str
+	}
+	
 }
 
 type node struct {
@@ -49,11 +81,23 @@ const (
 	Leader
 )
 
+func whatState(st State) string {
+	switch st {
+	case Follower:
+		return "Follower"
+	case Candidate:
+		return "Candidate"
+	case Leader:
+		return "Leader"
+	}
+	return ""
+}
+
 // LogEntry struct
 type LogEntry struct {
 	LogTerm  int
 	LogIndex int
-	LogCMD   interface{}
+	LogCMD   string
 }
 
 // Raft Node
@@ -206,9 +250,8 @@ func (rf *Raft) start() {
 					}
 
 					go func() {
-						i := 0
 						for {
-							i++
+							i := len(rf.log) + 1
 							msg, ok := <-rf.writeChan
 							fmt.Println("msg is " + msg)
 							if (ok) {
@@ -216,7 +259,7 @@ func (rf *Raft) start() {
 							} else {
 								fmt.Println("no msg to log")
 							}
-							time.Sleep(3 * time.Second)
+							time.Sleep(500 * time.Millisecond)
 						}
 					}()
 				}
@@ -273,9 +316,9 @@ func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 
 	if reply.VoteGranted {
 		rf.voteCount++
-		if rf.voteCount > len(rf.nodes)/2+1 {
-			rf.toLeaderC <- true
-		}
+	}
+	if rf.voteCount >= len(rf.nodes)/2+1 {
+		rf.toLeaderC <- true
 	}
 }
 
@@ -303,6 +346,8 @@ type HeartbeatReply struct {
 
 func (rf *Raft) broadcastHeartbeat() {
 	for i := range rf.nodes {
+		addr := rf.nodes[i].address
+		log.Printf("addr %v , lastLogCMD %s", addr, rf.getLastCMD())
 
 		var args HeartbeatArgs
 		args.Term = rf.currentTerm
@@ -350,6 +395,14 @@ func (rf *Raft) sendHeartbeat(serverID int, args HeartbeatArgs, reply *Heartbeat
 			return
 		}
 	}
+}
+
+func (rf *Raft) getLastCMD() string {
+	rlen := len(rf.log)
+	if rlen == 0 {
+		return ""
+	}
+	return rf.log[rlen-1].LogCMD
 }
 
 func (rf *Raft) getLastIndex() int {
