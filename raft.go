@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"time"
+	"strings"
 )
 
 type DLogEntry struct {
@@ -20,8 +21,10 @@ func WriteEntry(rf *Raft, clientName string, msg string) int {
 	callMeDaddy()
 	fmt.Println("state " + whatState(rf.state))
 	var idx int
+	qMsgStr := clientName + "$" + msg
+
 	if (rf.state == Leader) {
-		rf.writeChan <- msg
+		rf.writeChan <- qMsgStr
 		idx = len(rf.log) - 1
 	} else {
 		idx = -1
@@ -33,9 +36,7 @@ func WriteEntry(rf *Raft, clientName string, msg string) int {
 
 
 	return idx
-	// } else {
-	// 	return -1
-	// }
+
 }
 
 func ReadEntry(rf *Raft, idx int) string {
@@ -255,7 +256,11 @@ func (rf *Raft) start() {
 							msg, ok := <-rf.writeChan
 							fmt.Println("msg is " + msg)
 							if (ok) {
-								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, fmt.Sprintf("msg : %s", msg)})
+								dt := time.Now()
+								timeStr := dt.Format("01-02-2006 15:04:05")
+								clientMsgArr := strings.Split(msg, "$")
+								clientName, clientMsg := clientMsgArr[0], clientMsgArr[1]
+								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)})
 							} else {
 								fmt.Println("no msg to log")
 							}
@@ -299,12 +304,12 @@ func (rf *Raft) broadcastRequestVote() {
 
 func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 	client, err := rpc.DialHTTP("tcp", rf.nodes[serverID].address)
-	defer client.Close()
-	
+
 	if err != nil {
 		return
 	}
 
+	defer client.Close()
 	client.Call("Raft.RequestVote", args, reply)
 
 	// The current candidate node is invalid
@@ -374,12 +379,12 @@ func (rf *Raft) broadcastHeartbeat() {
 
 func (rf *Raft) sendHeartbeat(serverID int, args HeartbeatArgs, reply *HeartbeatReply) {
 	client, err := rpc.DialHTTP("tcp", rf.nodes[serverID].address)
-	defer client.Close()
 	
 	if err != nil {
 		return
 	}
 
+	defer client.Close()
 
 	client.Call("Raft.Heartbeat", args, reply)
 
