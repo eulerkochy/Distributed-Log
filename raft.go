@@ -299,11 +299,12 @@ func (rf *Raft) broadcastRequestVote() {
 
 func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 	client, err := rpc.DialHTTP("tcp", rf.nodes[serverID].address)
+	defer client.Close()
+	
 	if err != nil {
-		log.Fatal("dialing: ", err)
+		return
 	}
 
-	defer client.Close()
 	client.Call("Raft.RequestVote", args, reply)
 
 	// The current candidate node is invalid
@@ -373,11 +374,13 @@ func (rf *Raft) broadcastHeartbeat() {
 
 func (rf *Raft) sendHeartbeat(serverID int, args HeartbeatArgs, reply *HeartbeatReply) {
 	client, err := rpc.DialHTTP("tcp", rf.nodes[serverID].address)
+	defer client.Close()
+	
 	if err != nil {
-		log.Fatal("dialing:", err)
+		return
 	}
 
-	defer client.Close()
+
 	client.Call("Raft.Heartbeat", args, reply)
 
 	// If the leader node lags behind the follower node
