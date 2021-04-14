@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	"strconv"
 )
 
 func main() {
@@ -58,21 +59,42 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		callMeDaddy()
-		clientMsg := strings.TrimSpace(string(netData))
+
+		msg := strings.TrimSpace(string(netData))
+
+		clientMsgArr := strings.Split(msg, "$")
+
+		opt, clientMsg := clientMsgArr[0], clientMsgArr[1]
 
 		fmt.Printf("Client Message received : %s\n", clientMsg)
+		var idx int
 
-		idx := WriteEntry(raft, "ABC", clientMsg)
+		t := time.Now()
+
+		if opt == "W" {
+			idx = WriteEntry(raft, "ABC", clientMsg)
+				if (idx == -1) {
+				myMsg := t.Format(time.RFC3339) + " :: server is not a Leader" + "\n"
+				c.Write([]byte(myMsg))
+			} else {
+				myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("stored at log index %d", idx) +"\n"
+				c.Write([]byte(myMsg))
+			}
+		} else {
+			idx, _ = strconv.Atoi(clientMsg)
+			logMsg := ReadEntry(raft, idx)
+			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log at index %d is %s", idx, logMsg) +"\n"
+			c.Write([]byte(myMsg))
+
+		}
+		
 		if clientMsg == "STOP" {
 			fmt.Println("Exiting TCP server!")
 			return
 		}
 
-		fmt.Printf("-> %d %s", idx, clientMsg)
-		t := time.Now()
-		myTime := t.Format(time.RFC3339) + "\n"
-		c.Write([]byte(myTime))
+		
+
 	}
 
 }

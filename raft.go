@@ -8,10 +8,11 @@ import (
 	"net/rpc"
 	"strings"
 	"time"
+	"hash/fnv"
 )
 
 var (
-	globalMap = make(map[string]int)
+	globalMap = make(map[uint32]int)
 )
 
 type DLogEntry struct {
@@ -21,6 +22,13 @@ type DLogEntry struct {
 	msg string
 }
 
+func hash(s string) uint32 {
+        h := fnv.New32a()
+        h.Write([]byte(s))
+        return h.Sum32()
+}
+
+
 func WriteEntry(rf *Raft, clientName string, msg string) int {
 	callMeDaddy()
 	fmt.Println("state " + whatState(rf.state))
@@ -29,7 +37,7 @@ func WriteEntry(rf *Raft, clientName string, msg string) int {
 
 	if rf.state == Leader {
 		rf.writeChan <- qMsgStr
-		idx = len(rf.log) - 1
+		idx = len(rf.log)
 	} else {
 		idx = -1
 	}
@@ -187,11 +195,11 @@ func (rf *Raft) Heartbeat(args HeartbeatArgs, reply *HeartbeatReply) error {
 	}
 	fmt.Println("To be appended Entries ", args.Entries)
 	for i := 0; i < len(args.Entries); i++ {
-		if _, found := globalMap[args.Entries[i].LogCMD]; found {
+		if _, found := globalMap[hash(args.Entries[i].LogCMD)]; found {
 			continue
 		}
 		rf.log = append(rf.log, args.Entries[i])
-		globalMap[args.Entries[i].LogCMD] = 1
+		globalMap[hash(args.Entries[i].LogCMD)] = 1
 		rf.commitIndex = rf.getLastIndex()
 		reply.Success = true
 		reply.Term = rf.currentTerm
@@ -268,8 +276,9 @@ func (rf *Raft) start() {
 								timeStr := dt.Format("01-02-2006 15:04:05")
 								clientMsgArr := strings.Split(msg, "$")
 								clientName, clientMsg := clientMsgArr[0], clientMsgArr[1]
-								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)})
-								globalMap[fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)] = 1
+								clientString := fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)
+								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, clientString})
+								globalMap[hash(clientString)] = 1
 							} else {
 								fmt.Println("no msg to log")
 							}
@@ -332,7 +341,10 @@ func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 	if reply.VoteGranted {
 		rf.voteCount++
 	}
-	if rf.voteCount >= len(rf.nodes)/2+1 {
+
+	majority := len(rf.nodes)/2+1 
+
+	if rf.voteCount >= majority {
 		rf.toLeaderC <- true
 	}
 }
