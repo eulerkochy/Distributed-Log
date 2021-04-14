@@ -64,15 +64,14 @@ func main() {
 
 		clientMsgArr := strings.Split(msg, "$")
 
-		opt, clientMsg := clientMsgArr[0], clientMsgArr[1]
+		opt, clientMsg, clientName := clientMsgArr[0], clientMsgArr[1], clientMsgArr[2]
 
-		fmt.Printf("Client Message received : %s\n", clientMsg)
 		var idx int
 
 		t := time.Now()
 
 		if opt == "W" {
-			idx = WriteEntry(raft, "ABC", clientMsg)
+			idx = WriteEntry(raft, clientName, clientMsg)
 				if (idx == -1) {
 				myMsg := t.Format(time.RFC3339) + " :: server is not a Leader" + "\n"
 				c.Write([]byte(myMsg))
@@ -80,21 +79,20 @@ func main() {
 				myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("stored at log index %d", idx) +"\n"
 				c.Write([]byte(myMsg))
 			}
-		} else {
+		} else if opt == "R" {
 			idx, _ = strconv.Atoi(clientMsg)
 			logMsg := ReadEntry(raft, idx)
 			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log at index %d is %s", idx, logMsg) +"\n"
 			c.Write([]byte(myMsg))
 
-		}
-		
-		if clientMsg == "STOP" {
+		} else if opt == "GET" { // get all entries by that particular client
+			logMsgs := GetEntries(raft, clientName)
+			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log entries by %s are %s", clientName, logMsgs) +"\n"
+			c.Write([]byte(myMsg))			
+		} else  { // if opt == "STOP"
 			fmt.Println("Exiting TCP server!")
 			return
 		}
-
-		
-
 	}
 
 }

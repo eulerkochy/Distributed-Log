@@ -12,48 +12,34 @@ import (
 )
 
 var (
-	globalMap = make(map[uint32]int)
+	globalMap = make(map[uint64]int)
 )
 
-type DLogEntry struct {
-	clientID   string
-	entry_time time.Time
-
-	msg string
-}
-
-func hash(s string) uint32 {
-        h := fnv.New32a()
+func hash(s string) uint64 {
+        h := fnv.New64a()
         h.Write([]byte(s))
-        return h.Sum32()
+        return h.Sum64()
 }
 
 
 func WriteEntry(rf *Raft, clientName string, msg string) int {
-	callMeDaddy()
-	fmt.Println("state " + whatState(rf.state))
-	var idx int
+	var index int
 	qMsgStr := clientName + "$" + msg
 
 	if rf.state == Leader {
 		rf.writeChan <- qMsgStr
-		idx = len(rf.log)
+		index = len(rf.log)
 	} else {
-		idx = -1
+		index = -1
 	}
-	// metadata
-
-	dEntryMsg := &DLogEntry{}
-	dEntryMsg.clientID = clientName
-
-	return idx
+	
+	return index
 
 }
 
 func ReadEntry(rf *Raft, idx int) string {
 	var str string
 	maxIdx := rf.getLastIndex()
-	fmt.Printf("idx %d maxIdx %d\n", idx, maxIdx)
 	if rf.state != Leader {
 		return "error: redirect client call to Leader"
 	} else {
@@ -64,8 +50,37 @@ func ReadEntry(rf *Raft, idx int) string {
 		}
 		return str
 	}
-
 }
+
+func GetEntries(rf *Raft, clientName string) string {
+	var str string
+	maxIdx := rf.getLastIndex()
+	if rf.state != Leader {
+		return "error: redirect client call to Leader"
+	} else {
+		var strArr []string 
+		for idx := 0 ; idx < maxIdx ; idx++ {
+			lEntry := rf.log[idx]
+			if lEntry.LogClient == clientName {
+				strArr = append(strArr, lEntry.LogCMD)
+			}
+		}
+
+		str = stringArraySerialise(strArr)
+		return str
+	}
+}
+
+func stringArraySerialise(arr []string) string {
+	var res string
+	res = " [ "
+	for _, v := range arr {
+		res += "{ " + v + " ) " 
+	}
+	res += " ] "
+	return res
+}
+
 
 type node struct {
 	connect bool
@@ -108,8 +123,9 @@ func whatState(st State) string {
 // LogEntry struct
 type LogEntry struct {
 	LogTerm  int
-	LogIndex int
+	LogIndex int			
 	LogCMD   string
+	LogClient string
 }
 
 // Raft Node
@@ -277,7 +293,7 @@ func (rf *Raft) start() {
 								clientMsgArr := strings.Split(msg, "$")
 								clientName, clientMsg := clientMsgArr[0], clientMsgArr[1]
 								clientString := fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)
-								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, clientString})
+								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, clientString, clientName})
 								globalMap[hash(clientString)] = 1
 							} else {
 								fmt.Println("no msg to log")
