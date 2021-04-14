@@ -6,12 +6,16 @@ import (
 	"math/rand"
 	"net/http"
 	"net/rpc"
-	"time"
 	"strings"
+	"time"
+)
+
+var (
+	globalMap = make(map[string]int)
 )
 
 type DLogEntry struct {
-	clientID string
+	clientID   string
 	entry_time time.Time
 
 	msg string
@@ -23,7 +27,7 @@ func WriteEntry(rf *Raft, clientName string, msg string) int {
 	var idx int
 	qMsgStr := clientName + "$" + msg
 
-	if (rf.state == Leader) {
+	if rf.state == Leader {
 		rf.writeChan <- qMsgStr
 		idx = len(rf.log) - 1
 	} else {
@@ -34,7 +38,6 @@ func WriteEntry(rf *Raft, clientName string, msg string) int {
 	dEntryMsg := &DLogEntry{}
 	dEntryMsg.clientID = clientName
 
-
 	return idx
 
 }
@@ -43,17 +46,17 @@ func ReadEntry(rf *Raft, idx int) string {
 	var str string
 	maxIdx := rf.getLastIndex()
 	fmt.Printf("idx %d maxIdx %d\n", idx, maxIdx)
-	if (rf.state != Leader) {
+	if rf.state != Leader {
 		return "error: redirect client call to Leader"
 	} else {
-		if (idx < maxIdx ) {
+		if idx < maxIdx {
 			str = rf.log[idx].LogCMD
 		} else {
 			str = "error: no log record exists"
 		}
 		return str
 	}
-	
+
 }
 
 type node struct {
@@ -129,8 +132,7 @@ type Raft struct {
 	heartbeatC chan bool
 	toLeaderC  chan bool
 
-
-	// writeChannel 
+	// writeChannel
 	writeChan chan string
 	// read Channel
 	readChan chan int
@@ -183,12 +185,18 @@ func (rf *Raft) Heartbeat(args HeartbeatArgs, reply *HeartbeatReply) error {
 		reply.NextIndex = rf.getLastIndex() + 1
 		return nil
 	}
-
-	rf.log = append(rf.log, args.Entries...)
-	rf.commitIndex = rf.getLastIndex()
-	reply.Success = true
-	reply.Term = rf.currentTerm
-	reply.NextIndex = rf.getLastIndex() + 1
+	fmt.Println("To be appended Entries ", args.Entries)
+	for i := 0; i < len(args.Entries); i++ {
+		if _, found := globalMap[args.Entries[i].LogCMD]; found {
+			continue
+		}
+		rf.log = append(rf.log, args.Entries[i])
+		globalMap[args.Entries[i].LogCMD] = 1
+		rf.commitIndex = rf.getLastIndex()
+		reply.Success = true
+		reply.Term = rf.currentTerm
+		reply.NextIndex = rf.getLastIndex() + 1
+	}
 
 	return nil
 }
@@ -255,12 +263,13 @@ func (rf *Raft) start() {
 							i := len(rf.log) + 1
 							msg, ok := <-rf.writeChan
 							fmt.Println("msg is " + msg)
-							if (ok) {
+							if ok {
 								dt := time.Now()
 								timeStr := dt.Format("01-02-2006 15:04:05")
 								clientMsgArr := strings.Split(msg, "$")
 								clientName, clientMsg := clientMsgArr[0], clientMsgArr[1]
 								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)})
+								globalMap[fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)] = 1
 							} else {
 								fmt.Println("no msg to log")
 							}
@@ -379,7 +388,7 @@ func (rf *Raft) broadcastHeartbeat() {
 
 func (rf *Raft) sendHeartbeat(serverID int, args HeartbeatArgs, reply *HeartbeatReply) {
 	client, err := rpc.DialHTTP("tcp", rf.nodes[serverID].address)
-	
+
 	if err != nil {
 		return
 	}
