@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"strconv"
+	"os"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 	callMeDaddy()
 
 	raft.rpc(*port)
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	raft.start()
 
 	time.Sleep(1 * time.Second)
@@ -72,8 +73,8 @@ func main() {
 
 		if opt == "W" {
 			idx = WriteEntry(raft, clientName, clientMsg)
-				if (idx == -1) {
-				myMsg := t.Format(time.RFC3339) + " :: server is not a Leader" + "\n"
+			if (idx == -1) {
+				myMsg := t.Format(time.RFC3339) + " :: error: server is not a Leader" + "\n"
 				c.Write([]byte(myMsg))
 			} else {
 				myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("stored at log index %d", idx) +"\n"
@@ -89,8 +90,36 @@ func main() {
 			logMsgs := GetEntries(raft, clientName)
 			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log entries by %s are %s", clientName, logMsgs) +"\n"
 			c.Write([]byte(myMsg))			
-		} else  { // if opt == "STOP"
-			fmt.Println("Exiting TCP server!")
+		} else if opt == "GETLOG" {
+			logMsgs := GetAllEntries(raft)
+			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("all log entries : %s", logMsgs) +"\n"
+			c.Write([]byte(myMsg))
+		} else { // if opt == "STOP"
+			// save the log 
+			logArr := GetAllEntriesArray(raft)
+			if len(logArr) > 0 {
+				filename := "log-id-" + strconv.Itoa(*id) + "-"+ t.Format(time.RFC3339) + ".txt"
+				f, err := os.Create(filename)
+				if err != nil {
+			        fmt.Println("error: cannot create " + filename)
+			    }
+
+			    defer f.Close()
+
+			    for _, log := range logArr {
+
+			        _, err := f.WriteString(log + "\n")
+
+			        if err != nil {
+			        	fmt.Println("error: cannot Write " + log)
+			        }
+			    }
+			}
+
+
+			fmt.Println("Stopping TCP server!")
+			myMsg := "server stopped"
+			c.Write([]byte(myMsg))
 			return
 		}
 	}

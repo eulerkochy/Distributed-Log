@@ -71,11 +71,45 @@ func GetEntries(rf *Raft, clientName string) string {
 	}
 }
 
+func GetAllEntries(rf *Raft) string {
+	var str string
+	maxIdx := rf.getLastIndex()
+	if rf.state != Leader {
+		return "error: redirect client call to Leader"
+	} else {
+		var strArr []string 
+		for idx := 0 ; idx < maxIdx ; idx++ {
+			lEntry := rf.log[idx]
+			strArr = append(strArr, lEntry.LogCMD)
+		}
+
+		str = stringArraySerialise(strArr)
+		return str
+	}
+}
+
+
+func GetAllEntriesArray(rf *Raft) []string {
+	maxIdx := rf.getLastIndex()
+	var strArr []string 
+	if rf.state != Leader {
+		return strArr
+	} else {
+		
+		for idx := 0 ; idx < maxIdx ; idx++ {
+			lEntry := rf.log[idx]
+			strArr = append(strArr, lEntry.LogCMD)
+		}
+		return strArr
+	}
+}
+
+
 func stringArraySerialise(arr []string) string {
 	var res string
 	res = " [ "
 	for _, v := range arr {
-		res += "{ " + v + " ) " 
+		res += "{ " + v + " } " 
 	}
 	res += " ] "
 	return res

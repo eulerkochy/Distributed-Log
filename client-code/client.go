@@ -20,7 +20,7 @@ func main() {
 
 	for {
 		var opt string
-		fmt.Printf("choose [ R - Read Index ] [ W - Write Entry ] [GET - get all entries] [ STOP - to stop the server] ")
+		fmt.Printf("choose [ R - Read Index ] [ W - Write Entry ] [ GET - get all entries by client ] [ GETLOG - get all log entries  ] [ STOP - to stop the server] ")
 		fmt.Scanf("%s", &opt)
 
 		var text string
@@ -39,18 +39,19 @@ func main() {
 			CONNECT := v
 			c, err := net.Dial("tcp", CONNECT)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("->: %s   %v\n", v, err)
 				continue
 			}
 			msg := opt + "$" + text + "$" + clientName
 			fmt.Fprintf(c, msg+"\n")
 
 			message, _ := bufio.NewReader(c).ReadString('\n')
-			fmt.Print("->: " + message)
-			if strings.TrimSpace(string(text)) == "STOP" {
-			    fmt.Println("TCP client exiting...")
-			    return
-			}
+			fmt.Printf("->: " + v  + "  "  + message)
+			
+		}
+		if strings.TrimSpace(string(text)) == "STOP" {
+			fmt.Println("TCP client exiting...")
+			return
 		}
 		// time.Sleep(1 * time.Second)
 	}
