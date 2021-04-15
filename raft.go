@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	"hash/fnv"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/rpc"
 	"strings"
 	"time"
-	"hash/fnv"
 )
 
 var (
@@ -16,11 +16,10 @@ var (
 )
 
 func hash(s string) uint64 {
-        h := fnv.New64a()
-        h.Write([]byte(s))
-        return h.Sum64()
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return h.Sum64()
 }
-
 
 func WriteEntry(rf *Raft, clientName string, msg string) int {
 	var index int
@@ -32,7 +31,7 @@ func WriteEntry(rf *Raft, clientName string, msg string) int {
 	} else {
 		index = -1
 	}
-	
+
 	return index
 
 }
@@ -58,8 +57,8 @@ func GetEntries(rf *Raft, clientName string) string {
 	if rf.state != Leader {
 		return "error: redirect client call to Leader"
 	} else {
-		var strArr []string 
-		for idx := 0 ; idx < maxIdx ; idx++ {
+		var strArr []string
+		for idx := 0; idx < maxIdx; idx++ {
 			lEntry := rf.log[idx]
 			if lEntry.LogClient == clientName {
 				strArr = append(strArr, lEntry.LogCMD)
@@ -77,8 +76,8 @@ func GetAllEntries(rf *Raft) string {
 	if rf.state != Leader {
 		return "error: redirect client call to Leader"
 	} else {
-		var strArr []string 
-		for idx := 0 ; idx < maxIdx ; idx++ {
+		var strArr []string
+		for idx := 0; idx < maxIdx; idx++ {
 			lEntry := rf.log[idx]
 			strArr = append(strArr, lEntry.LogCMD)
 		}
@@ -88,15 +87,14 @@ func GetAllEntries(rf *Raft) string {
 	}
 }
 
-
 func GetAllEntriesArray(rf *Raft) []string {
 	maxIdx := rf.getLastIndex()
-	var strArr []string 
+	var strArr []string
 	if rf.state != Leader {
 		return strArr
 	} else {
-		
-		for idx := 0 ; idx < maxIdx ; idx++ {
+
+		for idx := 0; idx < maxIdx; idx++ {
 			lEntry := rf.log[idx]
 			strArr = append(strArr, lEntry.LogCMD)
 		}
@@ -104,17 +102,15 @@ func GetAllEntriesArray(rf *Raft) []string {
 	}
 }
 
-
 func stringArraySerialise(arr []string) string {
 	var res string
 	res = " [ "
 	for _, v := range arr {
-		res += "{ " + v + " } " 
+		res += "{ " + v + " } "
 	}
 	res += " ] "
 	return res
 }
-
 
 type node struct {
 	connect bool
@@ -156,9 +152,9 @@ func whatState(st State) string {
 
 // LogEntry struct
 type LogEntry struct {
-	LogTerm  int
-	LogIndex int			
-	LogCMD   string
+	LogTerm   int
+	LogIndex  int
+	LogCMD    string
 	LogClient string
 }
 
@@ -326,7 +322,7 @@ func (rf *Raft) start() {
 								timeStr := dt.Format("01-02-2006 15:04:05")
 								clientMsgArr := strings.Split(msg, "$")
 								clientName, clientMsg := clientMsgArr[0], clientMsgArr[1]
-								clientString := fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)
+								clientString := fmt.Sprintf("time : %s | clientName : %s | index : %d | msg : %s", timeStr, clientName, i, clientMsg)
 								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, clientString, clientName})
 								globalMap[hash(clientString)] = 1
 							} else {
@@ -392,7 +388,7 @@ func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 		rf.voteCount++
 	}
 
-	majority := len(rf.nodes)/2+1 
+	majority := len(rf.nodes)/2 + 1
 
 	if rf.voteCount >= majority {
 		rf.toLeaderC <- true
