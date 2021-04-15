@@ -2,9 +2,10 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"net"
-	"flag"
+	"os"
 	"strings"
 )
 
@@ -24,13 +25,15 @@ func main() {
 		fmt.Scanf("%s", &opt)
 
 		var text string
-		
+
 		if opt == "R" {
 			fmt.Printf("Enter index >> ")
 			fmt.Scanf("%s", &text)
 		} else if opt == "W" {
 			fmt.Printf("Enter message >> ")
-			fmt.Scanf("%s", &text)
+			scanner := bufio.NewScanner(os.Stdin)
+			scanner.Scan() // use `for scanner.Scan()` to keep reading
+			text = scanner.Text()
 		} else {
 			text = opt
 		}
@@ -46,8 +49,8 @@ func main() {
 			fmt.Fprintf(c, msg+"\n")
 
 			message, _ := bufio.NewReader(c).ReadString('\n')
-			fmt.Printf("->: " + v  + "  "  + message)
-			
+			fmt.Printf("->: " + v + "  " + message)
+
 		}
 		if strings.TrimSpace(string(text)) == "STOP" {
 			fmt.Println("TCP client exiting...")
