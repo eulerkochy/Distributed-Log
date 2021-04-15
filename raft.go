@@ -188,8 +188,6 @@ type Raft struct {
 
 	// writeChannel
 	writeChan chan string
-	// read Channel
-	readChan chan int
 }
 
 // RequestVote rpc method
@@ -274,7 +272,6 @@ func (rf *Raft) start() {
 	rf.toLeaderC = make(chan bool)
 
 	rf.writeChan = make(chan string)
-	rf.readChan = make(chan int)
 
 	go func() {
 
@@ -431,7 +428,7 @@ func (rf *Raft) broadcastHeartbeat() {
 		// Extract the entry after preLogIndex-baseIndex and send it to follower
 		prevLogIndex := rf.nextIndex[i] - 1
 		if rf.getLastIndex() > prevLogIndex {
-			args.PrevLogTerm = prevLogIndex
+			args.PrevLogIndex = prevLogIndex
 			args.PrevLogTerm = rf.log[prevLogIndex].LogTerm
 			args.Entries = rf.log[prevLogIndex:]
 			log.Printf("send entries: %v\n", args.Entries)
