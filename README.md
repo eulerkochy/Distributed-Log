@@ -80,3 +80,8 @@ Code runs on 5 servers
 ./client --cluster 172.26.0.49:9876,172.26.6.197:9876,172.26.9.127:9876,172.26.9.243:9876,172.26.6.224:9876
 ```
 
+**Flow of threads execution**
+---
+![image](https://user-images.githubusercontent.com/35341823/114992735-b56e2e00-9eb8-11eb-8e7d-49ed0fe96b51.png)
+
+
