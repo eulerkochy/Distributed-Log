@@ -11,10 +11,6 @@ import (
 	"time"
 )
 
-var (
-	globalMap = make(map[uint64]int)
-)
-
 func hash(s string) uint64 {
 	h := fnv.New64a()
 	h.Write([]byte(s))
@@ -238,17 +234,11 @@ func (rf *Raft) Heartbeat(args HeartbeatArgs, reply *HeartbeatReply) error {
 		return nil
 	}
 	fmt.Println("To be appended Entries ", args.Entries)
-	for i := 0; i < len(args.Entries); i++ {
-		if _, found := globalMap[hash(args.Entries[i].LogCMD)]; found {
-			continue
-		}
-		rf.log = append(rf.log, args.Entries[i])
-		globalMap[hash(args.Entries[i].LogCMD)] = 1
-		rf.commitIndex = rf.getLastIndex()
-		reply.Success = true
-		reply.Term = rf.currentTerm
-		reply.NextIndex = rf.getLastIndex() + 1
-	}
+	rf.log = append(rf.log, args.Entries...)
+	rf.commitIndex = rf.getLastIndex()
+	reply.Success = true
+	reply.Term = rf.currentTerm
+	reply.NextIndex = rf.getLastIndex() + 1
 
 	return nil
 }
@@ -321,7 +311,6 @@ func (rf *Raft) start() {
 								clientName, clientMsg := clientMsgArr[0], clientMsgArr[1]
 								clientString := fmt.Sprintf("time : %s | clientName : %s | index : %d | msg : %s", timeStr, clientName, i, clientMsg)
 								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, clientString, clientName})
-								globalMap[hash(clientString)] = 1
 							} else {
 								fmt.Println("no msg to log")
 							}
