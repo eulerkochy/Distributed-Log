@@ -32,7 +32,7 @@ Usage:
   - [W]     	Write entries in log, Leader returns the log index
   - [R]     	Read entry by index, Leader returns the logged message
   - [GET]   	Get all entries by the particular client
-  -	[GETLOG]	Gell all entries in the log 
+  - [GETLOG]	Get all entries in the log 
   - [STOP]  	Stop the servers and client
 
 ```
