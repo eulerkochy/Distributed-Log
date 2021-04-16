@@ -27,7 +27,7 @@ func WriteEntry(rf *Raft, clientName string, msg string) int {
 
 	if rf.state == Leader {
 		rf.writeChan <- qMsgStr
-		index = len(rf.log)
+		index = len(rf.log) + 1
 	} else {
 		index = -1
 	}
@@ -42,8 +42,10 @@ func ReadEntry(rf *Raft, idx int) string {
 	if rf.state != Leader {
 		return "error: redirect client call to Leader"
 	} else {
-		if idx < maxIdx {
-			str = rf.log[idx].LogCMD
+		if (idx == 0) {
+			str = "error: index has to be Greater than 0"
+		} else if idx <= maxIdx {
+			str = rf.log[idx-1].LogCMD
 		} else {
 			str = "error: no log record exists"
 		}
@@ -282,7 +284,7 @@ func (rf *Raft) start() {
 			case Follower:
 				select {
 				case <-rf.heartbeatC:
-					log.Printf("follower-%d recived heartbeat\n", rf.me)
+					log.Printf("follower-%d received heartbeat\n", rf.me)
 				case <-time.After(time.Duration(rand.Intn(500-300)+300) * time.Millisecond):
 					log.Printf("follower-%d timeout\n", rf.me)
 					rf.state = Candidate

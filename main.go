@@ -53,12 +53,12 @@ func main() {
 		c, err := l.Accept()
 		if err != nil {
 			fmt.Println(err)
-			return
+			continue
 		}
 		netData, err := bufio.NewReader(c).ReadString('\n')
 		if err != nil {
 			fmt.Println(err)
-			return
+			continue
 		}
 
 		msg := strings.TrimSpace(string(netData))
@@ -94,7 +94,7 @@ func main() {
 			logMsgs := GetAllEntries(raft)
 			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("all log entries : %s", logMsgs) +"\n"
 			c.Write([]byte(myMsg))
-		} else { // if opt == "STOP"
+		} else if opt == "STOP" { 
 			// save the log 
 			logArr := GetAllEntriesArray(raft)
 			if len(logArr) > 0 {
@@ -121,6 +121,9 @@ func main() {
 			myMsg := "server stopped"
 			c.Write([]byte(myMsg))
 			return
+		} else {
+			myMsg := "error :: wrong command"
+			c.Write([]byte(myMsg))
 		}
 	}
 
