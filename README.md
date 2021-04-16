@@ -6,6 +6,7 @@ Distributed Log for Distributed Systems course project.
 
   + A Raft-based implementation of distributed log where clients can write and read entries in the log.  
   + Log is replicated and persisted among the Raft clusters.
+  + On receiving a `STOP` command from client, Leader saves its log.
 
 
 **Installation and Usage**
@@ -28,10 +29,11 @@ $ go build -o client
 $ ./client --cluster  <hostname:mport>[,<hostname:mport>,..]
 
 Usage:
-  - [W]     Write entries in log, Leader returns the log index
-  - [R]     Read entry by index, Leader return the logged message
-  - [GET]   Get all entries by the particular client
-  - [STOP]  Stop the servers and client
+  - [W]     	Write entries in log, Leader returns the log index
+  - [R]     	Read entry by index, Leader returns the logged message
+  - [GET]   	Get all entries by the particular client
+  -	[GETLOG]	Gell all entries in the log 
+  - [STOP]  	Stop the servers and client
 
 ```
 
