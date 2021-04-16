@@ -42,7 +42,7 @@ func ReadEntry(rf *Raft, idx int) string {
 	if rf.state != Leader {
 		return "error: redirect client call to Leader"
 	} else {
-		if (idx == 0) {
+		if idx == 0 {
 			str = "error: index has to be Greater than 0"
 		} else if idx <= maxIdx {
 			str = rf.log[idx-1].LogCMD
@@ -117,10 +117,6 @@ func stringArraySerialise(arr []string) string {
 type node struct {
 	connect bool
 	address string
-}
-
-func callMeDaddy() {
-	fmt.Println("Hi Daddy")
 }
 
 // New node

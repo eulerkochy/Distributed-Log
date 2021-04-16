@@ -4,7 +4,7 @@
 
 Distributed Log for Distributed Systems course project. 
 
-  + A Raft-based implementation of distributed log where clients can write and read entries in the log.  
+  + A Raft-based implementation of distributed log where **multiple** clients can write and read entries in the log.  
   + Log is replicated and persisted among the Raft clusters.
   + On receiving a `STOP` command from client, Leader saves its log.
 
