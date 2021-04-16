@@ -2,58 +2,114 @@ package main
 
 import (
 	"fmt"
+	"hash/fnv"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/rpc"
-	"time"
 	"strings"
+	"time"
 )
 
-type DLogEntry struct {
-	clientID string
-	entry_time time.Time
+var (
+	globalMap = make(map[uint64]int)
+)
 
-	msg string
+func hash(s string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return h.Sum64()
 }
 
 func WriteEntry(rf *Raft, clientName string, msg string) int {
-	callMeDaddy()
-	fmt.Println("state " + whatState(rf.state))
-	var idx int
+	var index int
 	qMsgStr := clientName + "$" + msg
 
-	if (rf.state == Leader) {
+	if rf.state == Leader {
 		rf.writeChan <- qMsgStr
-		idx = len(rf.log) - 1
+		index = len(rf.log)
 	} else {
-		idx = -1
+		index = -1
 	}
-	// metadata
 
-	dEntryMsg := &DLogEntry{}
-	dEntryMsg.clientID = clientName
-
-
-	return idx
+	return index
 
 }
 
 func ReadEntry(rf *Raft, idx int) string {
 	var str string
 	maxIdx := rf.getLastIndex()
-	fmt.Printf("idx %d maxIdx %d\n", idx, maxIdx)
-	if (rf.state != Leader) {
+	if rf.state != Leader {
 		return "error: redirect client call to Leader"
 	} else {
-		if (idx < maxIdx ) {
+		if idx < maxIdx {
 			str = rf.log[idx].LogCMD
 		} else {
 			str = "error: no log record exists"
 		}
 		return str
 	}
-	
+}
+
+func GetEntries(rf *Raft, clientName string) string {
+	var str string
+	maxIdx := rf.getLastIndex()
+	if rf.state != Leader {
+		return "error: redirect client call to Leader"
+	} else {
+		var strArr []string
+		for idx := 0; idx < maxIdx; idx++ {
+			lEntry := rf.log[idx]
+			if lEntry.LogClient == clientName {
+				strArr = append(strArr, lEntry.LogCMD)
+			}
+		}
+
+		str = stringArraySerialise(strArr)
+		return str
+	}
+}
+
+func GetAllEntries(rf *Raft) string {
+	var str string
+	maxIdx := rf.getLastIndex()
+	if rf.state != Leader {
+		return "error: redirect client call to Leader"
+	} else {
+		var strArr []string
+		for idx := 0; idx < maxIdx; idx++ {
+			lEntry := rf.log[idx]
+			strArr = append(strArr, lEntry.LogCMD)
+		}
+
+		str = stringArraySerialise(strArr)
+		return str
+	}
+}
+
+func GetAllEntriesArray(rf *Raft) []string {
+	maxIdx := rf.getLastIndex()
+	var strArr []string
+	if rf.state != Leader {
+		return strArr
+	} else {
+
+		for idx := 0; idx < maxIdx; idx++ {
+			lEntry := rf.log[idx]
+			strArr = append(strArr, lEntry.LogCMD)
+		}
+		return strArr
+	}
+}
+
+func stringArraySerialise(arr []string) string {
+	var res string
+	res = " [ "
+	for _, v := range arr {
+		res += "{ " + v + " } "
+	}
+	res += " ] "
+	return res
 }
 
 type node struct {
@@ -96,9 +152,10 @@ func whatState(st State) string {
 
 // LogEntry struct
 type LogEntry struct {
-	LogTerm  int
-	LogIndex int
-	LogCMD   string
+	LogTerm   int
+	LogIndex  int
+	LogCMD    string
+	LogClient string
 }
 
 // Raft Node
@@ -129,11 +186,8 @@ type Raft struct {
 	heartbeatC chan bool
 	toLeaderC  chan bool
 
-
-	// writeChannel 
+	// writeChannel
 	writeChan chan string
-	// read Channel
-	readChan chan int
 }
 
 // RequestVote rpc method
@@ -183,12 +237,18 @@ func (rf *Raft) Heartbeat(args HeartbeatArgs, reply *HeartbeatReply) error {
 		reply.NextIndex = rf.getLastIndex() + 1
 		return nil
 	}
-
-	rf.log = append(rf.log, args.Entries...)
-	rf.commitIndex = rf.getLastIndex()
-	reply.Success = true
-	reply.Term = rf.currentTerm
-	reply.NextIndex = rf.getLastIndex() + 1
+	fmt.Println("To be appended Entries ", args.Entries)
+	for i := 0; i < len(args.Entries); i++ {
+		if _, found := globalMap[hash(args.Entries[i].LogCMD)]; found {
+			continue
+		}
+		rf.log = append(rf.log, args.Entries[i])
+		globalMap[hash(args.Entries[i].LogCMD)] = 1
+		rf.commitIndex = rf.getLastIndex()
+		reply.Success = true
+		reply.Term = rf.currentTerm
+		reply.NextIndex = rf.getLastIndex() + 1
+	}
 
 	return nil
 }
@@ -212,7 +272,6 @@ func (rf *Raft) start() {
 	rf.toLeaderC = make(chan bool)
 
 	rf.writeChan = make(chan string)
-	rf.readChan = make(chan int)
 
 	go func() {
 
@@ -255,12 +314,14 @@ func (rf *Raft) start() {
 							i := len(rf.log) + 1
 							msg, ok := <-rf.writeChan
 							fmt.Println("msg is " + msg)
-							if (ok) {
+							if ok {
 								dt := time.Now()
 								timeStr := dt.Format("01-02-2006 15:04:05")
 								clientMsgArr := strings.Split(msg, "$")
 								clientName, clientMsg := clientMsgArr[0], clientMsgArr[1]
-								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, fmt.Sprintf("time: %s | clientName: %s | msg : %s", timeStr, clientName, clientMsg)})
+								clientString := fmt.Sprintf("time : %s | clientName : %s | index : %d | msg : %s", timeStr, clientName, i, clientMsg)
+								rf.log = append(rf.log, LogEntry{rf.currentTerm, i, clientString, clientName})
+								globalMap[hash(clientString)] = 1
 							} else {
 								fmt.Println("no msg to log")
 							}
@@ -323,7 +384,10 @@ func (rf *Raft) sendRequestVote(serverID int, args VoteArgs, reply *VoteReply) {
 	if reply.VoteGranted {
 		rf.voteCount++
 	}
-	if rf.voteCount >= len(rf.nodes)/2+1 {
+
+	majority := len(rf.nodes)/2 + 1
+
+	if rf.voteCount >= majority {
 		rf.toLeaderC <- true
 	}
 }
@@ -364,7 +428,7 @@ func (rf *Raft) broadcastHeartbeat() {
 		// Extract the entry after preLogIndex-baseIndex and send it to follower
 		prevLogIndex := rf.nextIndex[i] - 1
 		if rf.getLastIndex() > prevLogIndex {
-			args.PrevLogTerm = prevLogIndex
+			args.PrevLogIndex = prevLogIndex
 			args.PrevLogTerm = rf.log[prevLogIndex].LogTerm
 			args.Entries = rf.log[prevLogIndex:]
 			log.Printf("send entries: %v\n", args.Entries)
@@ -379,7 +443,7 @@ func (rf *Raft) broadcastHeartbeat() {
 
 func (rf *Raft) sendHeartbeat(serverID int, args HeartbeatArgs, reply *HeartbeatReply) {
 	client, err := rpc.DialHTTP("tcp", rf.nodes[serverID].address)
-	
+
 	if err != nil {
 		return
 	}
