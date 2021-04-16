@@ -285,7 +285,7 @@ func (rf *Raft) start() {
 				select {
 				case <-rf.heartbeatC:
 					log.Printf("follower-%d received heartbeat\n", rf.me)
-				case <-time.After(time.Duration(rand.Intn(500)+500) * time.Millisecond):
+				case <-time.After(time.Duration(rand.Intn(900)+200) * time.Millisecond):
 					log.Printf("follower-%d timeout\n", rf.me)
 					rf.state = Candidate
 				}
@@ -297,7 +297,7 @@ func (rf *Raft) start() {
 				go rf.broadcastRequestVote()
 
 				select {
-				case <-time.After(time.Duration(rand.Intn(500)+500) * time.Millisecond):
+				case <-time.After(time.Duration(rand.Intn(900)+200) * time.Millisecond):
 					rf.state = Follower
 				case <-rf.toLeaderC:
 					fmt.Printf("Node: %d, I'm leader\n", rf.me)
