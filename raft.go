@@ -297,7 +297,7 @@ func (rf *Raft) start() {
 				go rf.broadcastRequestVote()
 
 				select {
-				case <-time.After(time.Duration(rand.Intn(500-300)+300) * time.Millisecond):
+				case <-time.After(time.Duration(rand.Intn(500)+500) * time.Millisecond):
 					rf.state = Follower
 				case <-rf.toLeaderC:
 					fmt.Printf("Node: %d, I'm leader\n", rf.me)
