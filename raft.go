@@ -309,6 +309,9 @@ func (rf *Raft) start() {
 
 					go func() {
 						for {
+							if rf.state != Leader {
+								return
+							}
 							i := len(rf.log) + 1
 							msg, ok := <-rf.writeChan
 							fmt.Println("msg is " + msg)
