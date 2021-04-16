@@ -115,7 +115,7 @@ func main() {
 			}
 
 			fmt.Println("Stopping TCP server!")
-			myMsg := "server stopped"
+			myMsg := "server stopped" + "\n"
 			c.Write([]byte(myMsg))
 			return
 		} else {
