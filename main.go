@@ -5,10 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
-	"os"
 )
 
 func main() {
@@ -41,8 +41,6 @@ func main() {
 
 	defer l.Close()
 
-	callMeDaddy()
-
 	raft.rpc(*port)
 	time.Sleep(1 * time.Second)
 	raft.start()
@@ -53,12 +51,12 @@ func main() {
 		c, err := l.Accept()
 		if err != nil {
 			fmt.Println(err)
-			return
+			continue
 		}
 		netData, err := bufio.NewReader(c).ReadString('\n')
 		if err != nil {
 			fmt.Println(err)
-			return
+			continue
 		}
 
 		msg := strings.TrimSpace(string(netData))
@@ -73,54 +71,56 @@ func main() {
 
 		if opt == "W" {
 			idx = WriteEntry(raft, clientName, clientMsg)
-			if (idx == -1) {
+			if idx == -1 {
 				myMsg := t.Format(time.RFC3339) + " :: error: server is not a Leader" + "\n"
 				c.Write([]byte(myMsg))
 			} else {
-				myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("stored at log index %d", idx) +"\n"
+				myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("stored at log index %d", idx) + "\n"
 				c.Write([]byte(myMsg))
 			}
 		} else if opt == "R" {
 			idx, _ = strconv.Atoi(clientMsg)
 			logMsg := ReadEntry(raft, idx)
-			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log at index %d is %s", idx, logMsg) +"\n"
+			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log at index %d is %s", idx, logMsg) + "\n"
 			c.Write([]byte(myMsg))
 
 		} else if opt == "GET" { // get all entries by that particular client
 			logMsgs := GetEntries(raft, clientName)
-			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log entries by %s are %s", clientName, logMsgs) +"\n"
-			c.Write([]byte(myMsg))			
+			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("log entries by %s are %s", clientName, logMsgs) + "\n"
+			c.Write([]byte(myMsg))
 		} else if opt == "GETLOG" {
 			logMsgs := GetAllEntries(raft)
-			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("all log entries : %s", logMsgs) +"\n"
+			myMsg := t.Format(time.RFC3339) + " :: " + fmt.Sprintf("all log entries : %s", logMsgs) + "\n"
 			c.Write([]byte(myMsg))
-		} else { // if opt == "STOP"
-			// save the log 
+		} else if opt == "STOP" {
+			// save the log
 			logArr := GetAllEntriesArray(raft)
 			if len(logArr) > 0 {
-				filename := "log-id-" + strconv.Itoa(*id) + "-"+ t.Format(time.RFC3339) + ".txt"
+				filename := "log-id-" + strconv.Itoa(*id) + "-" + t.Format(time.RFC3339) + ".txt"
 				f, err := os.Create(filename)
 				if err != nil {
-			        fmt.Println("error: cannot create " + filename)
-			    }
+					fmt.Println("error: cannot create " + filename)
+				}
 
-			    defer f.Close()
+				defer f.Close()
 
-			    for _, log := range logArr {
+				for _, log := range logArr {
 
-			        _, err := f.WriteString(log + "\n")
+					_, err := f.WriteString(log + "\n")
 
-			        if err != nil {
-			        	fmt.Println("error: cannot Write " + log)
-			        }
-			    }
+					if err != nil {
+						fmt.Println("error: cannot Write " + log)
+					}
+				}
 			}
-
 
 			fmt.Println("Stopping TCP server!")
 			myMsg := "server stopped"
 			c.Write([]byte(myMsg))
 			return
+		} else {
+			myMsg := "error :: wrong command"
+			c.Write([]byte(myMsg))
 		}
 	}
 

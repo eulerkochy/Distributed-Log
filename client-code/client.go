@@ -36,6 +36,10 @@ func main() {
 			text = scanner.Text()
 		} else {
 			text = opt
+			if !((text == "STOP") || (text == "GET") || (text == "GETLOG")) {
+				fmt.Println("Wrong Command entered")
+				continue
+			}
 		}
 
 		for _, v := range clusters {
